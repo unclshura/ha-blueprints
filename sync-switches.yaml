@@ -27,7 +27,7 @@ blueprint:
         entity:
           domain: input_boolean
 
-mode: single
+mode: restart   # IMPORTANT: prevents "Already running"
 
 triggers:
   - trigger: event
@@ -39,7 +39,15 @@ actions:
       slaves: !input slave_devices
       lock: !input lock_boolean
       entity: "{{ trigger.event.data.entity_id }}"
+      old_state: "{{ trigger.event.data.old_state.state if trigger.event.data.old_state else none }}"
       new_state: "{{ trigger.event.data.new_state.state if trigger.event.data.new_state else none }}"
+
+  ###########################################################################
+  # FILTER: Only run when the actual state changes (on/off), not attributes
+  ###########################################################################
+  - condition: template
+    value_template: >
+      {{ old_state != new_state and new_state in ['on', 'off'] }}
 
   ###########################################################################
   # RECURSION LOCK
