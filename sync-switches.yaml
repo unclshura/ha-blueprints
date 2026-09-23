@@ -1,8 +1,8 @@
 blueprint:
-  name: Master/Slave Switch Sync (No Smart Ceiling Light)
+  name: Master/Slave Switch Sync (Multiple Slaves, Dumb Ceiling Light)
   description: >
     Master physical switch controls a dumb ceiling light.
-    Slaves invert the master and show indicator state based on master.
+    Any number of slave logical switches invert the master and show indicator state.
   domain: automation
 
   input:
@@ -63,20 +63,32 @@ actions:
       - choose:
 
           #################################################################
-          # 1. MASTER SWITCH CHANGED -> update all slave indicators
+          # 1. MASTER SWITCH CHANGED → update all slave indicators
           #################################################################
           - conditions:
               - condition: trigger
                 id: master_changed
             sequence:
-              - alias: Update all slave indicators to match master
-                action: light.turn_on
-                target: !input slave_indicators
-                data:
-                  state: "{{ states((!input master_switch)) }}"
+              - alias: Update slave indicators to match master
+                choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: !input master_switch
+                        state: "on"
+                    sequence:
+                      - action: light.turn_on
+                        target: !input slave_indicators
+
+                  - conditions:
+                      - condition: state
+                        entity_id: !input master_switch
+                        state: "off"
+                    sequence:
+                      - action: light.turn_off
+                        target: !input slave_indicators
 
           #################################################################
-          # 2. ANY SLAVE PRESSED -> invert master + update indicators
+          # 2. ANY SLAVE PRESSED → invert master + update indicators
           #################################################################
           - conditions:
               - condition: trigger
@@ -89,11 +101,23 @@ actions:
 
               - delay: "00:00:01"
 
-              - alias: Update all slave indicators to match master
-                action: light.turn_on
-                target: !input slave_indicators
-                data:
-                  state: "{{ states((!input master_switch)) }}"
+              - alias: Update slave indicators to match master
+                choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: !input master_switch
+                        state: "on"
+                    sequence:
+                      - action: light.turn_on
+                        target: !input slave_indicators
+
+                  - conditions:
+                      - condition: state
+                        entity_id: !input master_switch
+                        state: "off"
+                    sequence:
+                      - action: light.turn_off
+                        target: !input slave_indicators
 
       - delay: "00:00:02"
 
