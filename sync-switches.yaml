@@ -1,0 +1,103 @@
+blueprint:
+  name: Master/Slave Switch Sync (No Smart Ceiling Light)
+  description: >
+    Master physical switch controls a dumb ceiling light.
+    Slaves invert the master and show indicator state based on master.
+  domain: automation
+
+  input:
+    master_switch:
+      name: Master physical switch (SW1)
+      selector:
+        entity:
+          domain: switch
+
+    slave_switches:
+      name: Slave logical switches (buttons)
+      description: List of logical slave switches that invert the master
+      selector:
+        target:
+          entity:
+            domain: light
+      default: []
+
+    slave_indicators:
+      name: Slave indicator lights
+      description: Indicator lights that mirror the master switch state
+      selector:
+        target:
+          entity:
+            domain: light
+      default: []
+
+    lock_boolean:
+      name: Lock boolean to prevent recursion
+      selector:
+        entity:
+          domain: input_boolean
+
+mode: single
+
+triggers:
+  - id: master_changed
+    trigger: state
+    entity_id: !input master_switch
+
+  - id: slave_pressed
+    trigger: state
+    entity_id: !input slave_switches
+
+actions:
+  - alias: Prevent recursion
+    if:
+      - condition: state
+        entity_id: !input lock_boolean
+        state: "on"
+    then: []
+    else:
+      - alias: Lock
+        action: input_boolean.turn_on
+        target:
+          entity_id: !input lock_boolean
+
+      - choose:
+
+          #################################################################
+          # 1. MASTER SWITCH CHANGED -> update all slave indicators
+          #################################################################
+          - conditions:
+              - condition: trigger
+                id: master_changed
+            sequence:
+              - alias: Update all slave indicators to match master
+                action: light.turn_on
+                target: !input slave_indicators
+                data:
+                  state: "{{ states((!input master_switch)) }}"
+
+          #################################################################
+          # 2. ANY SLAVE PRESSED -> invert master + update indicators
+          #################################################################
+          - conditions:
+              - condition: trigger
+                id: slave_pressed
+            sequence:
+              - alias: Toggle master
+                action: switch.toggle
+                target:
+                  entity_id: !input master_switch
+
+              - delay: "00:00:01"
+
+              - alias: Update all slave indicators to match master
+                action: light.turn_on
+                target: !input slave_indicators
+                data:
+                  state: "{{ states((!input master_switch)) }}"
+
+      - delay: "00:00:02"
+
+      - alias: Unlock
+        action: input_boolean.turn_off
+        target:
+          entity_id: !input lock_boolean
