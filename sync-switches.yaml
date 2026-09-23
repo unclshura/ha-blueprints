@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Event‑Driven)
+  name: Master/Slave Switch Sync (Single Slave List)
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -12,16 +12,9 @@ blueprint:
         entity:
           domain: switch
 
-    slave_switches:
-      name: Slave logical switches (buttons)
-      selector:
-        target:
-          entity:
-            domain: light
-      default: []
-
-    slave_indicators:
-      name: Slave indicator lights
+    slave_devices:
+      name: Slave devices (button + indicator)
+      description: Each slave light acts as both button and indicator
       selector:
         target:
           entity:
@@ -43,8 +36,7 @@ triggers:
 actions:
   - variables:
       master: !input master_switch
-      slaves: !input slave_switches
-      indicators: !input slave_indicators
+      slaves: !input slave_devices
       lock: !input lock_boolean
       entity: "{{ trigger.event.data.entity_id }}"
       new_state: "{{ trigger.event.data.new_state.state if trigger.event.data.new_state else none }}"
@@ -79,14 +71,14 @@ actions:
                         value_template: "{{ new_state == 'on' }}"
                     sequence:
                       - action: light.turn_on
-                        target: !input slave_indicators
+                        target: !input slave_devices
 
                   - conditions:
                       - condition: template
                         value_template: "{{ new_state == 'off' }}"
                     sequence:
                       - action: light.turn_off
-                        target: !input slave_indicators
+                        target: !input slave_devices
 
           ###################################################################
           # 2. ANY SLAVE PRESSED → invert master + update indicators
@@ -109,7 +101,7 @@ actions:
                         state: "on"
                     sequence:
                       - action: light.turn_on
-                        target: !input slave_indicators
+                        target: !input slave_devices
 
                   - conditions:
                       - condition: state
@@ -117,7 +109,7 @@ actions:
                         state: "off"
                     sequence:
                       - action: light.turn_off
-                        target: !input slave_indicators
+                        target: !input slave_devices
 
       - delay: "00:00:02"
 
