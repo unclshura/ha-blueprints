@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Single Slave List)
+  name: Master/Slave Switch Sync
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -27,101 +27,99 @@ blueprint:
         entity:
           domain: input_boolean
 
-mode: restart   # IMPORTANT: prevents "Already running"
+mode: single
 
 triggers:
-  - trigger: event
-    event_type: state_changed
+  - trigger: state
+    entity_id: !input master_switch
+    to:
+      - "on"
+      - "off"
+
+  - trigger: state
+    entity_id: !input slave_devices
+    to:
+      - "on"
+      - "off"
 
 actions:
-  - variables:
-      master: !input master_switch
-      slaves: !input slave_devices
-      lock: !input lock_boolean
-      entity: "{{ trigger.event.data.entity_id }}"
-      old_state: "{{ trigger.event.data.old_state.state if trigger.event.data.old_state else none }}"
-      new_state: "{{ trigger.event.data.new_state.state if trigger.event.data.new_state else none }}"
+  ###########################################################################
+  # RECURSION LOCK CHECK
+  ###########################################################################
+  - condition: state
+    entity_id: !input lock_boolean
+    state: "off"
 
   ###########################################################################
-  # FILTER: Only run when the actual state changes (on/off), not attributes
+  # LOCK
   ###########################################################################
-  - condition: template
-    value_template: >
-      {{ old_state != new_state and new_state in ['on', 'off'] }}
+  - action: input_boolean.turn_on
+    target:
+      entity_id: !input lock_boolean
 
   ###########################################################################
-  # RECURSION LOCK
+  # MASTER SWITCH CHANGED → update slave indicators
   ###########################################################################
-  - alias: Prevent recursion
-    if:
-      - condition: state
-        entity_id: !input lock_boolean
-        state: "on"
-    then: []
-    else:
-      - alias: Lock
-        action: input_boolean.turn_on
-        target:
-          entity_id: !input lock_boolean
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "0"   # master trigger is always first
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input master_switch
+                    state: "on"
+                sequence:
+                  - action: light.turn_on
+                    target: !input slave_devices
 
-      - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input master_switch
+                    state: "off"
+                sequence:
+                  - action: light.turn_off
+                    target: !input slave_devices
 
-          ###################################################################
-          # 1. MASTER SWITCH CHANGED → update all slave indicators
-          ###################################################################
-          - conditions:
-              - condition: template
-                value_template: "{{ entity == master }}"
-            sequence:
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ new_state == 'on' }}"
-                    sequence:
-                      - action: light.turn_on
-                        target: !input slave_devices
+      #######################################################################
+      # SLAVE SWITCH PRESSED → invert master + update indicators
+      #######################################################################
+      - conditions:
+          - condition: trigger
+            id: "1"   # slave trigger is always second
+        sequence:
+          - action: switch.toggle
+            target:
+              entity_id: !input master_switch
 
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ new_state == 'off' }}"
-                    sequence:
-                      - action: light.turn_off
-                        target: !input slave_devices
+          - delay: "00:00:01"
 
-          ###################################################################
-          # 2. ANY SLAVE PRESSED → invert master + update indicators
-          ###################################################################
-          - conditions:
-              - condition: template
-                value_template: "{{ entity in slaves }}"
-            sequence:
-              - alias: Toggle master
-                action: switch.toggle
-                target:
-                  entity_id: !input master_switch
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input master_switch
+                    state: "on"
+                sequence:
+                  - action: light.turn_on
+                    target: !input slave_devices
 
-              - delay: "00:00:01"
+              - conditions:
+                  - condition: state
+                    entity_id: !input master_switch
+                    state: "off"
+                sequence:
+                  - action: light.turn_off
+                    target: !input slave_devices
 
-              - choose:
-                  - conditions:
-                      - condition: state
-                        entity_id: !input master_switch
-                        state: "on"
-                    sequence:
-                      - action: light.turn_on
-                        target: !input slave_devices
+  ###########################################################################
+  # FINAL DELAY BEFORE UNLOCK
+  ###########################################################################
+  - delay: "00:00:01"
 
-                  - conditions:
-                      - condition: state
-                        entity_id: !input master_switch
-                        state: "off"
-                    sequence:
-                      - action: light.turn_off
-                        target: !input slave_devices
-
-      - delay: "00:00:02"
-
-      - alias: Unlock
-        action: input_boolean.turn_off
-        target:
-          entity_id: !input lock_boolean
+  ###########################################################################
+  # UNLOCK
+  ###########################################################################
+  - action: input_boolean.turn_off
+    target:
+      entity_id: !input lock_boolean
