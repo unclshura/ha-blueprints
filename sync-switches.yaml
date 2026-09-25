@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync
+  name: Master/Slave Switch Sync (Clean Trigger Version)
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -30,13 +30,15 @@ blueprint:
 mode: single
 
 triggers:
-  - trigger: state
+  - id: master_changed
+    trigger: state
     entity_id: !input master_switch
     to:
       - "on"
       - "off"
 
-  - trigger: state
+  - id: slave_changed
+    trigger: state
     entity_id: !input slave_devices
     to:
       - "on"
@@ -58,12 +60,16 @@ actions:
       entity_id: !input lock_boolean
 
   ###########################################################################
-  # MASTER SWITCH CHANGED → update slave indicators
+  # MAIN LOGIC
   ###########################################################################
   - choose:
+
+      #######################################################################
+      # 1. MASTER SWITCH CHANGED → update slave indicators
+      #######################################################################
       - conditions:
           - condition: trigger
-            id: "0"   # master trigger is always first
+            id: master_changed
         sequence:
           - choose:
               - conditions:
@@ -83,11 +89,11 @@ actions:
                     target: !input slave_devices
 
       #######################################################################
-      # SLAVE SWITCH PRESSED → invert master + update indicators
+      # 2. SLAVE SWITCH PRESSED → invert master + update indicators
       #######################################################################
       - conditions:
           - condition: trigger
-            id: "1"   # slave trigger is always second
+            id: slave_changed
         sequence:
           - action: switch.toggle
             target:
