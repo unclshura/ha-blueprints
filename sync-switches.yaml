@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Go‑Template Loop Version)
+  name: Master/Slave Switch Sync (Template Loop Version)
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -41,7 +41,7 @@ triggers:
 actions:
   - variables:
       master: !input master_switch
-      slaves: !input slave_devices
+      slaves: !input slave_devices.entity_id
       lock: !input lock_boolean
 
   ###########################################################################
