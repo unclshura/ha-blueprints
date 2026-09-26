@@ -30,7 +30,7 @@ mode: single
 triggers:
   - id: master_changed
     trigger: state
-    entity_id: "{{ master_switch }}"
+    entity_id: !input master_switch
     to: ["on", "off"]
 
   - id: slave_changed
