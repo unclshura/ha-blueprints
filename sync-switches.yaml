@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Template Loop Version)
+  name: Master/Slave Switch Sync (1)
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
