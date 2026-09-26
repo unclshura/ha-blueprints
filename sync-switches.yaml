@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Final Valid Version)
+  name: Master/Slave Switch Sync (Go‑Template Loop Version)
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -75,14 +75,22 @@ actions:
                     value_template: "{{ is_state(master, 'on') }}"
                 sequence:
                   - action: light.turn_on
-                    target: !input slave_devices
+                    target:
+                      entity_id: >
+                        {% for s in slaves %}
+                        {{ s }}
+                        {% endfor %}
 
               - conditions:
                   - condition: template
                     value_template: "{{ is_state(master, 'off') }}"
                 sequence:
                   - action: light.turn_off
-                    target: !input slave_devices
+                    target:
+                      entity_id: >
+                        {% for s in slaves %}
+                        {{ s }}
+                        {% endfor %}
 
       #######################################################################
       # 2. SLAVE SWITCH PRESSED → invert master + update indicators
@@ -103,14 +111,22 @@ actions:
                     value_template: "{{ is_state(master, 'on') }}"
                 sequence:
                   - action: light.turn_on
-                    target: !input slave_devices
+                    target:
+                      entity_id: >
+                        {% for s in slaves %}
+                        {{ s }}
+                        {% endfor %}
 
               - conditions:
                   - condition: template
                     value_template: "{{ is_state(master, 'off') }}"
                 sequence:
                   - action: light.turn_off
-                    target: !input slave_devices
+                    target:
+                      entity_id: >
+                        {% for s in slaves %}
+                        {{ s }}
+                        {% endfor %}
 
   ###########################################################################
   # FINAL DELAY BEFORE UNLOCK
