@@ -1,5 +1,5 @@
 blueprint:
-  name: Master/Slave Switch Sync (Pure Template Version)
+  name: Master/Slave Switch Sync
   description: >
     Master physical switch controls a dumb ceiling light.
     Slave logical switches invert the master and show indicator state.
@@ -13,10 +13,11 @@ blueprint:
           domain: switch
 
     slave_devices:
-      name: Slave devices (button + indicator)
+      name: Slave devices (buttons + indicators)
       selector:
-        entity:
-          domain: light
+        target:
+          entity:
+            domain: light
 
     lock_boolean:
       name: Lock boolean to prevent recursion
@@ -35,7 +36,7 @@ triggers:
   - id: slave_changed
     trigger: state
     entity_id: >
-      {% for s in slave_devices %}
+      {% for s in slave_devices.entity_id %}
       {{ s }}
       {% endfor %}
     to: ["on", "off"]
@@ -67,7 +68,7 @@ actions:
                   - action: light.turn_on
                     target:
                       entity_id: >
-                        {% for s in slave_devices %}
+                        {% for s in slave_devices.entity_id %}
                         {{ s }}
                         {% endfor %}
 
@@ -78,7 +79,7 @@ actions:
                   - action: light.turn_off
                     target:
                       entity_id: >
-                        {% for s in slave_devices %}
+                        {% for s in slave_devices.entity_id %}
                         {{ s }}
                         {% endfor %}
 
@@ -100,7 +101,7 @@ actions:
                   - action: light.turn_on
                     target:
                       entity_id: >
-                        {% for s in slave_devices %}
+                        {% for s in slave_devices.entity_id %}
                         {{ s }}
                         {% endfor %}
 
@@ -111,7 +112,7 @@ actions:
                   - action: light.turn_off
                     target:
                       entity_id: >
-                        {% for s in slave_devices %}
+                        {% for s in slave_devices.entity_id %}
                         {{ s }}
                         {% endfor %}
 
